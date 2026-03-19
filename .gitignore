@@ -10,6 +10,9 @@ lerna-debug.log*
 node_modules
 dist
 .env
+
+# Generated data (run npm run sync to regenerate)
+src/data/*.json
 dist-ssr
 *.local
 

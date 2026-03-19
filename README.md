@@ -10,6 +10,8 @@ Syncs with projects found on GitHub, CodePen, Colab Notebooks, and other externa
 npm install
 ```
 
+After cloning, run `npm run sync` (with `.env` configured) to generate the gallery data.
+
 ## Sync from CodePen
 
 Fetch your public pens from CodePen via the GraphQL API:
