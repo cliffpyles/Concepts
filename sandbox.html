@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Isolated Sandbox Environment</title>
+    <style>
+        /* A completely blank slate so the iframe background matches the app shell */
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+        }
+
+        #sandbox-root {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sandbox-root"></div>
+    <script type="module" src="/src/sandbox-main.tsx"></script>
+</body>
+
+</html>
