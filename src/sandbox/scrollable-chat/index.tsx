@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useLayoutEffect } from "react";
+import { memo, useRef, useState, useCallback, useEffect, useLayoutEffect } from "react";
 import { ArrowDown, Send } from "lucide-react";
 import "./styles.css";
 
@@ -36,6 +36,30 @@ function formatTime(date: Date): string {
 function isGroupStart(prev: Message | undefined, curr: Message): boolean {
     return !prev || prev.role !== curr.role;
 }
+
+const MessageItem = memo(function MessageItem({
+    msg,
+    isGroupStart: isGroupStartMsg,
+}: {
+    msg: Message;
+    isGroupStart: boolean;
+}) {
+    return (
+        <article
+            className={`message message--${msg.role} ${!isGroupStartMsg ? "message--grouped" : ""}`}
+            data-role={msg.role}
+            data-group-start={isGroupStartMsg || undefined}
+            aria-label={`${msg.role === "user" ? "You" : "Assistant"} at ${msg.timestamp}`}
+        >
+            {isGroupStartMsg && (
+                <span className="message__timestamp" aria-hidden="true">
+                    {msg.timestamp}
+                </span>
+            )}
+            <p className="message__content">{msg.content}</p>
+        </article>
+    );
+});
 
 export default function ScrollableChat() {
     const [messages, setMessages] = useState<Message[]>(DEMO_MESSAGES);
@@ -94,6 +118,7 @@ export default function ScrollableChat() {
         const el = scrollContainerRef.current;
         if (!el) return;
 
+        let rafId: number | null = null;
         const checkScrollPosition = () => {
             const { scrollTop, scrollHeight, clientHeight } = el;
             const threshold = 60;
@@ -109,11 +134,18 @@ export default function ScrollableChat() {
         };
 
         const runCheck = () => {
-            requestAnimationFrame(checkScrollPosition);
+            if (rafId != null) return;
+            rafId = requestAnimationFrame(() => {
+                rafId = null;
+                checkScrollPosition();
+            });
         };
         runCheck();
-        el.addEventListener("scroll", checkScrollPosition, { passive: true });
-        return () => el.removeEventListener("scroll", checkScrollPosition);
+        el.addEventListener("scroll", runCheck, { passive: true });
+        return () => {
+            if (rafId != null) cancelAnimationFrame(rafId);
+            el.removeEventListener("scroll", runCheck);
+        };
     }, [messages.length]);
 
     // When messages change: if user was at bottom, keep them there (pin-to-bottom)
@@ -134,17 +166,23 @@ export default function ScrollableChat() {
 
     // Re-check scroll position when messages change
     useEffect(() => {
+        let mounted = true;
         const el = scrollContainerRef.current;
         if (!el) return;
         const id = requestAnimationFrame(() => {
+            if (!mounted) return;
             const { scrollTop, scrollHeight, clientHeight } = el;
             setIsScrolledUp(scrollHeight - scrollTop - clientHeight >= 60);
         });
-        return () => cancelAnimationFrame(id);
+        return () => {
+            mounted = false;
+            cancelAnimationFrame(id);
+        };
     }, [messages]);
 
     // Simulate typing + new assistant messages
     useEffect(() => {
+        let mounted = true;
         let messageTimeout: ReturnType<typeof setTimeout>;
 
         const scheduleNext = () => {
@@ -153,6 +191,7 @@ export default function ScrollableChat() {
             setIsTyping(true);
             const typingDuration = 1500 + Math.random() * 1000;
             messageTimeout = setTimeout(() => {
+                if (!mounted) return;
                 const el = scrollContainerRef.current;
                 const wasAtBottom = !!(el && el.scrollHeight - el.scrollTop - el.clientHeight < 60);
                 shouldScrollToBottomRef.current = wasAtBottom;
@@ -173,6 +212,7 @@ export default function ScrollableChat() {
         const interval = setInterval(scheduleNext, 10000);
 
         return () => {
+            mounted = false;
             clearInterval(interval);
             clearTimeout(messageTimeout);
         };
@@ -187,27 +227,13 @@ export default function ScrollableChat() {
                     aria-live="polite"
                     aria-label="Chat messages"
                 >
-                    {messages.map((msg, i) => {
-                        const prev = messages[i - 1];
-                        const isGroupStartMsg = isGroupStart(prev, msg);
-
-                        return (
-                            <article
-                                key={msg.id}
-                                className={`message message--${msg.role} ${!isGroupStartMsg ? "message--grouped" : ""}`}
-                                data-role={msg.role}
-                                data-group-start={isGroupStartMsg || undefined}
-                                aria-label={`${msg.role === "user" ? "You" : "Assistant"} at ${msg.timestamp}`}
-                            >
-                                {isGroupStartMsg && (
-                                    <span className="message__timestamp" aria-hidden="true">
-                                        {msg.timestamp}
-                                    </span>
-                                )}
-                                <p className="message__content">{msg.content}</p>
-                            </article>
-                        );
-                    })}
+                    {messages.map((msg, i) => (
+                        <MessageItem
+                            key={msg.id}
+                            msg={msg}
+                            isGroupStart={isGroupStart(messages[i - 1], msg)}
+                        />
+                    ))}
                     {isTyping && (
                         <article
                             className="message message--assistant message--typing"
