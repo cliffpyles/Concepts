@@ -238,6 +238,8 @@ interface ApiPen {
   views?: string;
   loves?: string;
   comments?: string;
+  createdAt?: string; // ADDED
+  updatedAt?: string; // ADDED
   images?: { small?: string; large?: string };
   user?: { username?: string; nicename?: string; avatar?: string };
 }
@@ -255,7 +257,7 @@ interface PenCode {
 }
 
 interface PenWithFirstSeen extends ApiPen {
-  firstSeen?: string;
+  firstSeen?: string; // Kept for legacy/indexing fallback, but createdAt is primary now
   code?: PenCode;
 }
 
@@ -266,6 +268,8 @@ interface GqlPen {
   itemType: string;
   private?: boolean;
   url?: string;
+  createdAt?: string; // ADDED
+  updatedAt?: string; // ADDED
   counts?: { views?: number; loves?: number; comments?: number };
   owner?: { username?: string; title?: string; baseUrl?: string; avatar80?: string };
   urls?: { full?: string };
@@ -354,8 +358,6 @@ async function fetchPensGraphQL(config: Config, userId: string): Promise<ApiPen[
     const pageInfo = json.data?.pens?.pageInfo;
 
     for (const p of pens) {
-      // Only include public pens (access: "All" returns everything; filter client-side)
-      // itemType is "Pen" (capital P) from GraphQL
       if (p.itemType?.toLowerCase() === "pen" && p.private !== true) {
         allPens.push(p);
       }
@@ -382,16 +384,18 @@ function mapGqlPenToApiPen(p: GqlPen): ApiPen {
   return {
     id: penSlug ?? p.id ?? "",
     title: p.title ?? "Untitled",
-    details: "",
+    details: "", // CodePen doesn't reliably expose pen descriptions via this specific GraphQL fragment
     link,
     views: String(p.counts?.views ?? 0),
     loves: String(p.counts?.loves ?? 0),
     comments: String(p.counts?.comments ?? 0),
+    createdAt: p.createdAt, // ADDED: Capturing true creation date
+    updatedAt: p.updatedAt, // ADDED: Capturing true updated date
     images: link
       ? {
-          small: link.startsWith("http") ? `${link}/image/small.png` : `https://codepen.io${link}/image/small.png`,
-          large: link.startsWith("http") ? `${link}/image/large.png` : `https://codepen.io${link}/image/large.png`,
-        }
+        small: link.startsWith("http") ? `${link}/image/small.png` : `https://codepen.io${link}/image/small.png`,
+        large: link.startsWith("http") ? `${link}/image/large.png` : `https://codepen.io${link}/image/large.png`,
+      }
       : undefined,
     user: {
       username,
@@ -459,6 +463,7 @@ function mergePens(
   }
   const now = new Date().toISOString();
   let newCount = 0;
+
   for (const p of fetched) {
     const normalized = {
       ...p,
@@ -466,21 +471,30 @@ function mergePens(
         ? p.link
         : `https://codepen.io/${username}/pen/${p.id}`,
     };
+
     if (!byId.has(p.id)) {
       byId.set(p.id, { ...normalized, firstSeen: now });
       newCount++;
     } else {
       const existingPen = byId.get(p.id)!;
-      byId.set(p.id, { ...normalized, firstSeen: existingPen.firstSeen ?? now });
+      // Merge, ensuring we keep the original firstSeen if it existed, but overriding with fresh API dates
+      byId.set(p.id, {
+        ...existingPen,
+        ...normalized,
+        firstSeen: existingPen.firstSeen ?? now
+      });
     }
   }
+
   if (newCount > 0) {
     console.log(`Added ${newCount} new pen(s) to the log.`);
   }
+
+  // Sort by the newly available true createdAt date, fallback to firstSeen
   return Array.from(byId.values()).sort((a, b) => {
-    const aSeen = a.firstSeen ?? "";
-    const bSeen = b.firstSeen ?? "";
-    return bSeen.localeCompare(aSeen);
+    const aDate = a.createdAt ?? a.firstSeen ?? "";
+    const bDate = b.createdAt ?? b.firstSeen ?? "";
+    return bDate.localeCompare(aDate);
   });
 }
 

@@ -25,9 +25,17 @@ export interface Pen {
   comments?: string;
   images?: CodePenImages;
   user?: CodePenUser;
-  /** When this pen was first added to our log (from sync) */
+
+  /** True creation date fetched from the CodePen GraphQL API */
+  createdAt?: string;
+
+  /** Last updated date fetched from the CodePen GraphQL API */
+  updatedAt?: string;
+
+  /** Legacy fallback: When this resource was first added to the log */
   firstSeen?: string;
-  /** Source code fetched from pen URL + .html, .css, .js */
+
+  /** Source code flags fetched from the resource URL */
   code?: PenCode;
 }
 
