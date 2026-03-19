@@ -1,0 +1,19 @@
+[
+  {
+    "id": "example",
+    "title": "Example Pen",
+    "details": "Replace with your pen details. Add entries for each pen at https://codepen.io/cliffpyles",
+    "link": "https://codepen.io/cliffpyles/pen/example",
+    "views": "0",
+    "loves": "0",
+    "comments": "0",
+    "images": {
+      "small": "https://assets.codepen.io/t-1/codepen-logo.svg",
+      "large": "https://assets.codepen.io/t-1/codepen-logo.svg"
+    },
+    "user": {
+      "username": "cliffpyles",
+      "nicename": "Cliff Pyles"
+    }
+  }
+]
