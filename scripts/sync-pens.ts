@@ -39,8 +39,48 @@ interface PensData {
   username: string;
 }
 
+interface PenCode {
+  html?: string;
+  css?: string;
+  js?: string;
+}
+
 interface PenWithFirstSeen extends ApiPen {
   firstSeen?: string;
+  code?: PenCode;
+}
+
+function looksLikeCode(text: string): boolean {
+  return (
+    text.length > 0 &&
+    !text.trimStart().startsWith("<!") &&
+    !text.trimStart().startsWith("<html")
+  );
+}
+
+async function fetchPenCode(baseUrl: string): Promise<PenCode | undefined> {
+  const [html, css, js] = await Promise.all(
+    [".html", ".css", ".js"].map(async (ext) => {
+      try {
+        const res = await fetch(`${baseUrl}${ext}`, {
+          signal: AbortSignal.timeout(8000),
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (compatible; CodePenSync/1.0; +https://github.com)",
+          },
+        });
+        if (!res.ok) return undefined;
+        const text = (await res.text()) || "";
+        return looksLikeCode(text) ? text : undefined;
+      } catch {
+        return undefined;
+      }
+    })
+  );
+  if (html ?? css ?? js) {
+    return { html, css, js };
+  }
+  return undefined;
 }
 
 async function fetchFromApi(url: string): Promise<ApiPen[] | null> {
@@ -126,7 +166,20 @@ async function main() {
   console.log(`Syncing pens for ${USERNAME}...`);
   const fetched = await fetchPens();
   const existing = loadExistingData();
-  const merged = mergePens(existing.pens as PenWithFirstSeen[], fetched);
+  let merged = mergePens(existing.pens as PenWithFirstSeen[], fetched);
+
+  // Fetch pen code from URL + .html, .css, .js
+  console.log("Fetching pen source code...");
+  for (let i = 0; i < merged.length; i++) {
+    const pen = merged[i];
+    const baseUrl = pen.link?.replace(/\/?$/, "");
+    if (baseUrl) {
+      const code = await fetchPenCode(baseUrl);
+      if (code) {
+        merged[i] = { ...pen, code };
+      }
+    }
+  }
 
   const data: PensData = {
     pens: merged,

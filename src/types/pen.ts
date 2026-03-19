@@ -9,6 +9,12 @@ export interface CodePenImages {
   large?: string;
 }
 
+export interface PenCode {
+  html?: string;
+  css?: string;
+  js?: string;
+}
+
 export interface Pen {
   id: string;
   title: string;
@@ -21,6 +27,8 @@ export interface Pen {
   user?: CodePenUser;
   /** When this pen was first added to our log (from sync) */
   firstSeen?: string;
+  /** Source code fetched from pen URL + .html, .css, .js */
+  code?: PenCode;
 }
 
 export interface PensData {
