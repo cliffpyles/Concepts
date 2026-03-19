@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "sync:pens": "npx tsx scripts/sync-pens.ts",
     "sync:sandbox": "npx tsx scripts/sync-sandbox.ts",
+    "create:sandbox": "npx tsx scripts/create-sandbox.ts",
     "sync": "npm run sync:sandbox && npm run sync:pens"
   },
   "dependencies": {
