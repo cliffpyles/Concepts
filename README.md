@@ -1,6 +1,6 @@
-# CodePen Collection
+# Concepts
 
-A demo site for [@cliffpyles](https://codepen.io/cliffpyles) CodePen pens. Displays a grid of pens with links to CodePen and a detailed pen log that updates when new pens are synced.
+A collection of concepts, demos, and experiments. Currently syncs from CodePen but can also be developed independently and may support additional external sources in the future. Displays a grid of pens with links to CodePen and a detailed log that updates when synced.
 
 ## Setup
 
@@ -8,7 +8,7 @@ A demo site for [@cliffpyles](https://codepen.io/cliffpyles) CodePen pens. Displ
 npm install
 ```
 
-## Sync Pens
+## Sync from CodePen
 
 Fetch your public pens from CodePen via the GraphQL API:
 

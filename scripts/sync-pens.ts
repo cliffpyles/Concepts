@@ -1,5 +1,5 @@
 /**
- * Syncs public CodePen pens via GraphQL API.
+ * Syncs public CodePen pens via GraphQL API into the Concepts collection.
  * Requires .env with CODEPEN_USER_ID, CODEPEN_SESSION, CODEPEN_CSRF_TOKEN.
  * Run with: npm run sync
  */
@@ -73,10 +73,29 @@ fragment GridItemFields on Item {
     ownsItem
     __typename
   }
+  ... on Collection {
+    ...GridCollectionFields
+    __typename
+  }
   ... on Pen {
     ...GridPenFields
     __typename
   }
+  ... on Post {
+    ...GridPostFields
+    __typename
+  }
+  ... on Project {
+    ...GridProjectFields
+    __typename
+  }
+  __typename
+}
+
+fragment GridCollectionFields on Collection {
+  id
+  counts { items __typename }
+  urls { full __typename }
   __typename
 }
 
@@ -96,22 +115,34 @@ fragment GridPenFields on Pen {
     __typename
   }
   __typename
+}
+
+fragment GridPostFields on Post {
+  id
+  previews { summary { processed { body __typename } __typename } __typename }
+  __typename
+}
+
+fragment GridProjectFields on Project {
+  id
+  urls { details full __typename }
+  previews { shotUrlTemplate __typename }
+  __typename
 }`;
 
 interface Config {
-  userId: string;
+  userId: string | null;
   session: string;
   csrfToken: string;
   outputPath: string;
 }
 
 function loadConfig(): Config {
-  const userId = process.env.CODEPEN_USER_ID;
+  const userId = process.env.CODEPEN_USER_ID?.trim() || null;
   const session = process.env.CODEPEN_SESSION;
   const csrfToken = process.env.CODEPEN_CSRF_TOKEN;
 
   const missing: string[] = [];
-  if (!userId?.trim()) missing.push("CODEPEN_USER_ID");
   if (!session?.trim()) missing.push("CODEPEN_SESSION");
   if (!csrfToken?.trim()) missing.push("CODEPEN_CSRF_TOKEN");
 
@@ -127,11 +158,76 @@ function loadConfig(): Config {
     join(__dirname, "../src/data/pens.json");
 
   return {
-    userId: userId!,
+    userId,
     session: session!,
     csrfToken: csrfToken!,
     outputPath,
   };
+}
+
+const SESSION_USER_QUERY = `query SessionUser {
+  sessionUser {
+    id
+    username
+    anon
+    currentContext {
+      id
+      username
+      __typename
+    }
+    __typename
+  }
+}`;
+
+async function fetchSessionUserId(config: Config): Promise<string> {
+  if (config.userId) return config.userId;
+
+  const headers = getAuthHeaders(config);
+  const res = await fetch("https://codepen.io/graphql", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      operationName: "SessionUser",
+      query: SESSION_USER_QUERY,
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Session query failed: ${res.status}`);
+  }
+
+  const json = (await res.json()) as {
+    data?: {
+      sessionUser?: {
+        anon?: boolean;
+        currentContext?: { id?: string };
+        id?: string;
+      };
+    };
+    errors?: Array<{ message: string }>;
+  };
+
+  if (json.errors?.length) {
+    throw new Error(
+      `Session query failed: ${json.errors.map((e) => e.message).join("; ")}`
+    );
+  }
+
+  if (json.data?.sessionUser?.anon) {
+    throw new Error(
+      "Not logged in. Copy CODEPEN_SESSION and CODEPEN_CSRF_TOKEN from browser DevTools while logged in at codepen.io."
+    );
+  }
+
+  const userId =
+    json.data?.sessionUser?.currentContext?.id ?? json.data?.sessionUser?.id;
+  if (!userId) {
+    throw new Error(
+      "Could not get user ID from session. Are you logged in? Set CODEPEN_USER_ID manually if needed."
+    );
+  }
+  return userId;
 }
 
 interface ApiPen {
@@ -190,10 +286,17 @@ interface GqlResponse {
 }
 
 function getAuthHeaders(config: Config): Record<string, string> {
+  const cookieParts = [`cp_session=${config.session}`];
+  if (process.env.CODEPEN_CF_CLEARANCE) {
+    cookieParts.push(`cf_clearance=${process.env.CODEPEN_CF_CLEARANCE}`);
+  }
+  if (process.env.CODEPEN_CF_BM) {
+    cookieParts.push(`__cf_bm=${process.env.CODEPEN_CF_BM}`);
+  }
   return {
     accept: "application/graphql-response+json,application/json;q=0.9",
     "content-type": "application/json",
-    cookie: `cp_session=${config.session}`,
+    cookie: cookieParts.join("; "),
     "x-csrf-token": config.csrfToken,
     origin: "https://codepen.io",
     referer: "https://codepen.io/your-work",
@@ -202,7 +305,7 @@ function getAuthHeaders(config: Config): Record<string, string> {
   };
 }
 
-async function fetchPensGraphQL(config: Config): Promise<ApiPen[]> {
+async function fetchPensGraphQL(config: Config, userId: string): Promise<ApiPen[]> {
   const headers = getAuthHeaders(config);
   const allPens: GqlPen[] = [];
   let cursor: string | null = null;
@@ -217,9 +320,9 @@ async function fetchPensGraphQL(config: Config): Promise<ApiPen[]> {
           sortOrder: "Desc",
         },
         filters: {
-          userId: config.userId,
+          userId,
           teamId: null,
-          access: "Public",
+          access: "All",
         },
       },
     };
@@ -251,7 +354,9 @@ async function fetchPensGraphQL(config: Config): Promise<ApiPen[]> {
     const pageInfo = json.data?.pens?.pageInfo;
 
     for (const p of pens) {
-      if (p.itemType === "pen" && !p.private) {
+      // Only include public pens (access: "All" returns everything; filter client-side)
+      // itemType is "Pen" (capital P) from GraphQL
+      if (p.itemType?.toLowerCase() === "pen" && p.private !== true) {
         allPens.push(p);
       }
     }
@@ -265,21 +370,29 @@ async function fetchPensGraphQL(config: Config): Promise<ApiPen[]> {
 function mapGqlPenToApiPen(p: GqlPen): ApiPen {
   const username = p.owner?.username ?? "unknown";
   const baseUrl = p.owner?.baseUrl ?? `https://codepen.io/${username}`;
-  const link =
-    p.urls?.full ?? `${baseUrl.replace(/\/$/, "")}/pen/${p.token}`;
+  const penSlug = p.token ?? p.id;
+  let link = p.urls?.full ?? p.url ?? "";
+  if (!link && penSlug) {
+    link = `${baseUrl.replace(/\/$/, "")}/pen/${penSlug}`;
+  }
+  if (link && link.includes("/full/")) {
+    link = link.replace("/full/", "/pen/");
+  }
 
   return {
-    id: p.token,
+    id: penSlug ?? p.id ?? "",
     title: p.title ?? "Untitled",
     details: "",
     link,
     views: String(p.counts?.views ?? 0),
     loves: String(p.counts?.loves ?? 0),
     comments: String(p.counts?.comments ?? 0),
-    images: {
-      small: `${link}/image/small.png`,
-      large: `${link}/image/large.png`,
-    },
+    images: link
+      ? {
+          small: link.startsWith("http") ? `${link}/image/small.png` : `https://codepen.io${link}/image/small.png`,
+          large: link.startsWith("http") ? `${link}/image/large.png` : `https://codepen.io${link}/image/large.png`,
+        }
+      : undefined,
     user: {
       username,
       nicename: p.owner?.title,
@@ -375,8 +488,20 @@ async function main() {
   const config = loadConfig();
   console.log("Syncing public pens via GraphQL...");
 
-  const fetched = await fetchPensGraphQL(config);
+  const userId = await fetchSessionUserId(config);
+  const debug = process.env.CODEPEN_DEBUG === "1" || process.env.CODEPEN_DEBUG === "true";
+  if (debug) {
+    console.error(`CODEPEN_DEBUG: Using userId=${userId}`);
+  }
+
+  const fetched = await fetchPensGraphQL(config, userId);
   console.log(`Fetched ${fetched.length} public pens.`);
+
+  if (fetched.length === 0 && !debug) {
+    console.error(
+      "Tip: Set CODEPEN_DEBUG=1 to see the raw API response. Ensure your session is fresh (log in at codepen.io and copy cookies)."
+    );
+  }
 
   const username = fetched[0]?.user?.username ?? "codepen";
   const existing = loadExistingData(config.outputPath, username);

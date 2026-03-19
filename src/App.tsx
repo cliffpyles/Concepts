@@ -13,7 +13,7 @@ function PenCard({ pen }: { pen: Pen }) {
       target="_blank"
       rel="noopener noreferrer"
       className="pen-card"
-      aria-label={`View ${pen.title} on CodePen`}
+      aria-label={`View ${pen.title}`}
     >
       <div className="pen-card__thumb">
         <img src={thumb} alt="" loading="lazy" />
@@ -106,7 +106,7 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1 className="header__title">CodePen Collection</h1>
+        <h1 className="header__title">Concepts</h1>
         <p className="header__subtitle">
           <a
             href="https://codepen.io/cliffpyles"
@@ -127,13 +127,14 @@ function App() {
         <section className="section section--demo">
           <h2>Demo</h2>
           <p className="section__intro">
-            Click any pen to open it on CodePen.
+            Click any concept to open it. Pens sync from CodePen; additional
+            sources may be added later.
           </p>
           <div className="pen-grid">
             {pens.length === 0 ? (
               <p className="empty-state">
-                No pens yet. Run <code>npm run sync</code> to fetch from your
-                CodePen profile, or add pens to{" "}
+                No concepts yet. Run <code>npm run sync</code> to fetch from
+                CodePen, or add pens to{" "}
                 <code>src/data/pens.manual.json</code>.
               </p>
             ) : (
@@ -145,13 +146,13 @@ function App() {
         <section className="section section--log">
           <h2>Pen Log</h2>
           <p className="section__intro">
-            Pens appear here when synced. New pens are added automatically with
-            full details.
+            Concepts appear here when synced. New items are added automatically
+            with full details.
           </p>
           <div className="log">
             {logPens.length === 0 ? (
               <p className="empty-state">
-                Log is empty. Sync pens to populate.
+                Log is empty. Run sync to populate.
               </p>
             ) : (
               logPens.map((pen) => <LogItem key={pen.id} pen={pen} />)
