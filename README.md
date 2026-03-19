@@ -1,73 +1,61 @@
-# React + TypeScript + Vite
+# CodePen Collection
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A demo site for [@cliffpyles](https://codepen.io/cliffpyles) CodePen pens. Displays a grid of pens with links to CodePen and a detailed pen log that updates when new pens are synced.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Sync Pens
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Fetch your public pens from CodePen:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run sync
 ```
+
+The sync script tries several unofficial CodePen APIs. If they're unavailable, it falls back to `src/data/pens.manual.json` — add your pens there in the same JSON structure.
+
+**When you add new pens** to your CodePen profile and run `npm run sync`, they automatically appear in the log with full details (title, description, views, loves, comments, first-seen date).
+
+## Development
+
+```bash
+npm run dev
+```
+
+## Build
+
+```bash
+npm run build
+```
+
+## Manual Pens
+
+If the API is down, edit `src/data/pens.manual.json`:
+
+```json
+[
+  {
+    "id": "your-pen-id",
+    "title": "Pen Title",
+    "details": "Description",
+    "link": "https://codepen.io/cliffpyles/pen/your-pen-id",
+    "views": "0",
+    "loves": "0",
+    "comments": "0",
+    "images": {
+      "small": "https://...",
+      "large": "https://..."
+    },
+    "user": {
+      "username": "cliffpyles",
+      "nicename": "Cliff Pyles"
+    }
+  }
+]
+```
+
+Then run `npm run sync` to merge them into the main data file.
