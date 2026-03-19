@@ -1,0 +1,362 @@
+/* ==========================================================================
+   Scrollable Chat - Modern CSS (2024-2026)
+   Features: overflow-anchor, scroll-state, oklch, font-variant-numeric,
+   contrast formula, backdrop-filter
+   ========================================================================== */
+
+/* ------------------------------------------------------------------
+   Layout & Structure
+   min-height: 0 on flex children is critical for scroll to work with mouse wheel
+   ------------------------------------------------------------------ */
+.chat {
+    timeline-scope: --chat-scroll;
+    --chat-bg: oklch(0.98 0.005 250);
+    --chat-surface: oklch(1 0 0);
+    --chat-border: oklch(0.9 0.01 250);
+    --user-bg: oklch(0.6 0.15 250);
+    --assistant-bg: oklch(0.95 0.02 250);
+    --text: oklch(0.25 0.02 250);
+    --text-muted: oklch(0.5 0.02 250);
+
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--chat-bg);
+}
+
+/* Scroll container: min-height: 0 allows flex child to shrink and scroll */
+.chat__messages {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 1.25rem 2rem;
+    overscroll-behavior-y: contain;
+    scroll-timeline-name: --chat-scroll;
+    scroll-timeline-axis: block;
+}
+
+/* overflow-anchor: pin to bottom when user is at bottom */
+.chat .message-list * {
+    overflow-anchor: none;
+}
+
+.chat .scroll-anchor {
+    overflow-anchor: auto;
+    height: 1px;
+    flex-shrink: 0;
+    scroll-margin-bottom: 1.5rem;
+}
+
+/* ------------------------------------------------------------------
+   Footer: return button + input (button floats above input when scrolled up)
+   ------------------------------------------------------------------ */
+.chat .chat__footer {
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* Return-to-bottom: anchor link (no JS) + scroll-driven visibility (CSS) */
+.chat .return-btn {
+    text-decoration: none;
+    position: absolute;
+    right: 1.25rem;
+    bottom: 100%;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    padding: 0 0.75rem;
+    border: none;
+    border-radius: 1.5rem;
+    background: oklch(0.35 0.12 250);
+    color: oklch(0.98 0 0);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: transform 0.15s ease, background 0.15s, box-shadow 0.2s;
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.2);
+    animation: return-btn-visibility linear both;
+    animation-timeline: --chat-scroll;
+    animation-range: 0% 100%;
+}
+
+@keyframes return-btn-visibility {
+    0% { opacity: 1; visibility: visible; }
+    100% { opacity: 0; visibility: hidden; pointer-events: none; }
+}
+
+/* Fallback when scroll-driven animations not supported: hide via class */
+@supports not (animation-timeline: scroll()) {
+    .chat .return-btn {
+        animation: none;
+    }
+    .chat .return-btn.return-btn--at-bottom {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+}
+
+.chat .return-btn:hover {
+    transform: translateY(-2px);
+    background: oklch(0.3 0.12 250);
+    box-shadow: 0 6px 20px oklch(0 0 0 / 0.25);
+}
+
+.chat .return-btn:active {
+    transform: translateY(0);
+}
+
+.chat .return-btn:focus-visible {
+    outline: 2px solid oklch(0.6 0.2 250);
+    outline-offset: 2px;
+}
+
+.chat .return-btn__count {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: inherit;
+}
+
+/* ------------------------------------------------------------------
+   Message list
+   ------------------------------------------------------------------ */
+.chat .message-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        flex: 1;
+}
+
+.chat .message {
+        --bg: var(--assistant-bg);
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        max-width: 85%;
+        padding: 0.625rem 0.875rem;
+        border-radius: 1rem;
+        background: var(--bg);
+        font-variant-numeric: tabular-nums;
+}
+
+.chat .message--user {
+        --bg: var(--user-bg);
+        align-self: flex-end;
+        color: oklch(from var(--user-bg) round(1.21 - l) 0 0);
+}
+
+.chat .message--assistant {
+        align-self: flex-start;
+        color: var(--text);
+        border: 1px solid var(--chat-border);
+        transition: background 0.15s;
+}
+
+.chat .message--assistant:hover {
+        background: oklch(0.96 0.015 250);
+}
+
+/* Message grouping: tighter spacing for consecutive same-role messages */
+.chat .message--grouped {
+        margin-top: -0.25rem;
+}
+
+.chat .message--grouped .message__timestamp {
+        display: none;
+}
+
+.chat .message__timestamp {
+        font-size: 0.6875rem;
+        color: var(--text-muted);
+        opacity: 0.85;
+}
+
+.chat .message--user .message__timestamp {
+        color: oklch(from var(--user-bg) round(1.21 - l) 0 0 / 0.8);
+}
+
+.chat .message__content {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+}
+
+/* Typing indicator - same padding as regular messages */
+.chat .message--typing {
+        padding: 0.625rem 0.875rem;
+}
+
+.chat .typing-indicator {
+        display: flex;
+        gap: 0.25rem;
+        align-items: center;
+}
+
+.chat .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-muted);
+        animation: typing-bounce 1.4s ease-in-out infinite both;
+}
+
+.chat .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+.chat .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.chat .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+        0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+        40% { transform: scale(1); opacity: 1; }
+}
+
+/* Message entry animation */
+.chat .message {
+        animation: message-fade-in 0.3s ease-out both;
+}
+
+@keyframes message-fade-in {
+        from {
+            opacity: 0;
+            transform: translateY(4px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+    }
+}
+
+/* ------------------------------------------------------------------
+   Input area (Slack/ChatGPT-style) - anchored at bottom
+   ------------------------------------------------------------------ */
+.chat .chat__input {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+        padding: 0.75rem 1rem;
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+        background: var(--chat-surface);
+        border-top: 1px solid var(--chat-border);
+        flex-shrink: 0;
+}
+
+.chat .chat__input-inner {
+        display: flex;
+        gap: 0.5rem;
+        align-items: flex-end;
+}
+
+.chat .chat__textarea {
+        flex: 1;
+        field-sizing: content;
+        min-height: 2.5rem;
+        max-height: 200px;
+        min-width: 0;
+        padding: 0.625rem 0.875rem;
+        border: 1px solid var(--chat-border);
+        border-radius: 1rem;
+        font-family: inherit;
+        font-size: inherit;
+        line-height: 1.5;
+        color: var(--text);
+        background: var(--chat-bg);
+        resize: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        overflow-y: auto;
+}
+
+
+.chat .chat__textarea::placeholder {
+        color: var(--text-muted);
+}
+
+.chat .chat__textarea:focus {
+        outline: none;
+        border-color: oklch(0.6 0.15 250);
+        box-shadow: 0 0 0 3px oklch(0.6 0.15 250 / 0.15);
+}
+
+.chat .chat__hint {
+        font-size: 0.6875rem;
+        color: var(--text-muted);
+        padding-left: 0.25rem;
+}
+
+.chat .chat__send {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        color: oklch(1 0 0);
+        background: oklch(0.6 0.15 250);
+        cursor: pointer;
+        transition: transform 0.15s, background 0.15s, opacity 0.15s;
+}
+
+.chat .chat__send:hover:not(:disabled) {
+        background: oklch(0.55 0.15 250);
+        transform: scale(1.05);
+}
+
+.chat .chat__send:active:not(:disabled) {
+        transform: scale(0.95);
+}
+
+.chat .chat__send:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+}
+
+.chat .chat__send:focus-visible {
+        outline: 2px solid oklch(0.6 0.2 250);
+        outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------
+   Accessibility
+   ------------------------------------------------------------------ */
+.chat .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .chat .return-btn,
+    .chat .message,
+    .chat .typing-indicator span {
+        transition: none;
+        animation: none;
+    }
+
+    .chat .typing-indicator span {
+        opacity: 1;
+    }
+}
