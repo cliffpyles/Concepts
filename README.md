@@ -1,6 +1,8 @@
 # Concepts
 
-A collection of concepts, demos, and experiments. Currently syncs from CodePen but can also be developed independently and may support additional external sources in the future. Displays a grid of pens with links to CodePen and a detailed log that updates when synced.
+A collection of concepts, demos, and experiments.
+
+Syncs with projects found on GitHub, CodePen, Colab Notebooks, and other external resources.
 
 ## Setup
 
