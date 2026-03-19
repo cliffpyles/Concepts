@@ -10,15 +10,18 @@ npm install
 
 ## Sync Pens
 
-Fetch your public pens from CodePen:
+Fetch your public pens from CodePen via the GraphQL API:
+
+1. Copy `.env.example` to `.env`
+2. Log in at [codepen.io](https://codepen.io) and open DevTools
+3. Fill in `CODEPEN_USER_ID`, `CODEPEN_SESSION`, and `CODEPEN_CSRF_TOKEN` (see `.env.example` for where to find these)
+4. Run:
 
 ```bash
 npm run sync
 ```
 
-The sync script tries several unofficial CodePen APIs. If they're unavailable, it falls back to `src/data/pens.manual.json` — add your pens there in the same JSON structure.
-
-**When you add new pens** to your CodePen profile and run `npm run sync`, they automatically appear in the log with full details (title, description, views, loves, comments, first-seen date).
+**When you add new pens** to your CodePen profile and run `npm run sync`, they automatically appear in the log with full details (title, views, loves, comments, first-seen date). Only public pens are synced; private pens are ignored.
 
 ## Development
 
@@ -31,31 +34,3 @@ npm run dev
 ```bash
 npm run build
 ```
-
-## Manual Pens
-
-If the API is down, edit `src/data/pens.manual.json`:
-
-```json
-[
-  {
-    "id": "your-pen-id",
-    "title": "Pen Title",
-    "details": "Description",
-    "link": "https://codepen.io/cliffpyles/pen/your-pen-id",
-    "views": "0",
-    "loves": "0",
-    "comments": "0",
-    "images": {
-      "small": "https://...",
-      "large": "https://..."
-    },
-    "user": {
-      "username": "cliffpyles",
-      "nicename": "Cliff Pyles"
-    }
-  }
-]
-```
-
-Then run `npm run sync` to merge them into the main data file.
